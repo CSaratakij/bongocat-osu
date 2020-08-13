@@ -1,3 +1,6 @@
+# [ Changed already got merge to upstream ]
+- just grab [upstream](https://github.com/kuroni/bongocat-osu) and compile it yourself.
+
 # This is Linux native port
 - for more information on how to use, please see the [upstream](https://github.com/kuroni/bongocat-osu),
 [see how it perform](https://youtu.be/OylY3CnOpKs)
