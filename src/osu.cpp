@@ -1,5 +1,9 @@
 #include "header.hpp"
 
+// Hacks, make bongo cat raise its hand slower
+// This is vary with different computer, doing this for the sake of this branch only
+#define BONGO_KEYPRESS_THRESHOLD 0.007
+
 namespace osu {
 Json::Value left_key_value, right_key_value, smoke_key_value, wave_key_value;
 int offset_x, offset_y;
@@ -11,12 +15,19 @@ sf::Sprite bg, up, left, right, device, smoke, wave;
 
 int key_state = 0;
 
+int previous_key_code = -1;
+int current_key_code = -1;
+
+bool is_use_anykey = false;
 bool left_key_state = false;
 bool right_key_state = false;
 bool wave_key_state = false;
 bool previous_smoke_key_state = false;
 bool current_smoke_key_state = false;
+bool previous_anykey_state = false;
+bool current_anykey_state = false;
 bool is_toggle_smoke = false;
+bool is_show_paw_left = true;
 double timer_left_key = -1;
 double timer_right_key = -1;
 double timer_wave_key = -1;
@@ -27,6 +38,12 @@ bool init() {
 
     is_mouse = osu["mouse"].asBool();
     is_enable_toggle_smoke = osu["toggleSmoke"].asBool();
+    is_use_anykey = osu["useAnyKey"].asBool();
+
+    // force toggle smoke, when use anykey
+    if (is_use_anykey) {
+        is_enable_toggle_smoke = true;
+    }
 
     paw_r = osu["paw"][0].asInt();
     paw_g = osu["paw"][1].asInt();
@@ -51,13 +68,16 @@ bool init() {
             return false;
         }
     }
+
     wave_key_value = osu["wave"];
+
     for (Json::Value &v : wave_key_value) {
         if (chk[v.asInt()]) {
             data::error_msg("Overlapping osu! keybinds", "Error reading configs");
             return false;
         }
     }
+
     smoke_key_value = osu["smoke"];
 
     is_left_handed = data::cfg["decoration"]["leftHanded"].asBool();
@@ -179,6 +199,7 @@ void draw() {
         fill[i].color = sf::Color(paw_r, paw_g, paw_b, paw_a);
         fill[i + 1].color = sf::Color(paw_r, paw_g, paw_b, paw_a);
     }
+
     window.draw(fill);
 
     // drawing first arm arc
@@ -242,14 +263,56 @@ void draw() {
 
     // drawing keypresses
     bool left_key = false;
+    bool right_key = false;
+    bool wave_key = false;
 
-    for (Json::Value &v : left_key_value) {
-        if (input::is_pressed(v.asInt())) {
-            left_key = true;
-            break;
+    if (is_use_anykey) {
+
+        previous_anykey_state = current_anykey_state;
+        current_anykey_state = input::is_pressed_anykey();
+
+        int last_key_code = input::getLastKeyCode();
+
+        previous_key_code = current_key_code;
+        current_key_code = (last_key_code >= 0) ? last_key_code : previous_key_code;
+
+        bool is_not_the_same_key = (previous_key_code != current_key_code);
+        bool shouldChangePawSide = is_not_the_same_key && (current_anykey_state != previous_anykey_state) && current_anykey_state;
+
+        if (shouldChangePawSide) {
+            is_show_paw_left = !is_show_paw_left;
+        }
+
+        left_key = (current_anykey_state && is_show_paw_left);
+        right_key = (current_anykey_state && !is_show_paw_left);
+    }
+    else {
+        // left key check
+        for (Json::Value &v : left_key_value) {
+            if (input::is_pressed(v.asInt())) {
+                left_key = true;
+                break;
+            }
+        }
+
+        // right key check
+        for (Json::Value &v : right_key_value) {
+            if (input::is_pressed(v.asInt())) {
+                right_key = true;
+                break;
+            }
+        }
+
+        // wave key check
+        for (Json::Value &v : wave_key_value) {
+            if (input::is_pressed(v.asInt())) {
+                wave_key = true;
+                break;
+            }
         }
     }
 
+    // update left state
     if (left_key) {
         if (!left_key_state) {
             key_state = 1;
@@ -259,15 +322,7 @@ void draw() {
         left_key_state = false;
     }
 
-    bool right_key = false;
-
-    for (Json::Value &v : right_key_value) {
-        if (input::is_pressed(v.asInt())) {
-            right_key = true;
-            break;
-        }
-    }
-
+    // update right state
     if (right_key) {
         if (!right_key_state) {
             key_state = 2;
@@ -276,16 +331,8 @@ void draw() {
     } else {
         right_key_state = false;
     }
-    
-    bool wave_key = false;
 
-    for (Json::Value &v : wave_key_value) {
-        if (input::is_pressed(v.asInt())) {
-            wave_key = true;
-            break;
-        }
-    }
-
+    // update wave state
     if (wave_key) {
         if (!wave_key_state) {
             key_state = 3;
@@ -346,18 +393,25 @@ void draw() {
         }
     }
 
-    if (is_enable_toggle_smoke) {
-        previous_smoke_key_state = current_smoke_key_state;
-        current_smoke_key_state = is_smoke_key_pressed;
-
-        bool is_smoke_key_down = current_smoke_key_state && (current_smoke_key_state != previous_smoke_key_state);
-
-        if (is_smoke_key_down) {
-            is_toggle_smoke = !is_toggle_smoke;
-        }
+    if (is_use_anykey) {
+        // TODO : toggle smoke key by wpm?
+        // Or, if keystoke is press frequently during some amount of time, toggle smoke key
+        // toggle it off during some amount of time left?
     }
     else {
-        is_toggle_smoke = is_smoke_key_pressed;
+        if (is_enable_toggle_smoke) {
+            previous_smoke_key_state = current_smoke_key_state;
+            current_smoke_key_state = is_smoke_key_pressed;
+
+            bool is_smoke_key_down = current_smoke_key_state && (current_smoke_key_state != previous_smoke_key_state);
+
+            if (is_smoke_key_down) {
+                is_toggle_smoke = !is_toggle_smoke;
+            }
+        }
+        else {
+            is_toggle_smoke = is_smoke_key_pressed;
+        }
     }
 
     if (is_toggle_smoke) {

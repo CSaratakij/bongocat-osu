@@ -23,8 +23,13 @@ extern "C" {
 namespace input {
 int horizontal, vertical;
 int osu_x, osu_y, osu_h, osu_v;
-bool is_letterbox, is_left_handed;
 
+bool is_letterbox, is_left_handed;
+bool is_press_anykey_flag;
+
+int previous_keyboard_keycode = -1;
+
+int last_keyboard_keycode = -1;
 int last_joystick_keycode = -1;
 
 std::string debugMessage;
@@ -221,6 +226,28 @@ bool is_pressed(int key_code) {
     }
 }
 
+// Use polling fallback (terrible performance but I've no choice...)
+bool is_pressed_anykey() {
+    bool is_last_key_release = (last_keyboard_keycode >= 0) && !is_pressed(last_keyboard_keycode);
+
+    if (is_last_key_release) {
+        last_keyboard_keycode = -1;
+        return false;
+    }
+
+    for (int i = 0; i < TOTAl_INPUT_TABLE_SIZE; ++i) {
+        int key_code = INPUT_KEY_TABLE[i];
+        bool is_pressing = is_pressed(key_code);
+
+        if (is_pressing) {
+            last_keyboard_keycode = key_code;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool is_joystick_connected() {
     return sf::Joystick::isConnected(0);
 }
@@ -315,6 +342,10 @@ bool is_joystick_pressed(int key_code) {
     }
 
     return false;
+}
+
+int getLastKeyCode() {
+    return last_keyboard_keycode;
 }
 
 // bezier curve for osu and custom
@@ -507,6 +538,18 @@ std::pair<double, double> get_xy() {
 #endif
 
     return std::make_pair(x, y);
+}
+
+void setLastKeyCode(int key_code) {
+    last_keyboard_keycode = key_code;
+}
+
+void setAnyKeyFlag(bool value) {
+    is_press_anykey_flag = value;
+}
+
+void toggleAnyKeyFlag() {
+    is_press_anykey_flag = !is_press_anykey_flag;
 }
 
 void drawDebugPanel() {

@@ -35,17 +35,24 @@ namespace input {
 bool init();
 
 bool is_pressed(int key_code);
+bool is_pressed_anykey();
 
 bool is_joystick_connected();
 bool is_joystick_pressed(int key_code);
+
+int getLastKeyCode();
 
 std::pair<double, double> bezier(double ratio, std::vector<double> &points, int length);
 
 std::pair<double, double> get_xy();
 
+void setLastKeyCode(int key_code);
+void setAnyKeyFlag(bool value);
+void toggleAnyKeyFlag();
 void drawDebugPanel();
 
 void cleanup();
+
 }; // namespace input
 
 namespace osu {

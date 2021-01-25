@@ -54,6 +54,20 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     break;
                 }
 
+                // This have a problem, it report only when the window itself get focused.
+                // Useless when user focus on other window
+                // Polling check all the key per frame? (terrible performance)
+                //------------------------------
+                // raise anykey flag
+                /* input::setLastKeyCode((int)event.key.code); */
+                /* input::setAnyKeyFlag(true); */
+                break;
+
+            case sf::Event::KeyReleased:
+                /* input::setLastKeyCode((int)event.key.code); */
+                /* input::setAnyKeyFlag(false); */
+                break;
+
             default:
                 is_reload = false;
             }
